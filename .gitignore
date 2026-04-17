@@ -7,47 +7,42 @@ node_modules/
 .env.local
 .env.*
 
-# Editor/IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# Logs
-*.log
-
 # Build outputs
 dist/
 build/
 target/
 
-# Python specific
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
+
+# Logs
+*.log
 
 # Coverage reports
 coverage/
 htmlcov/
 .coverage
 
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
 # Testing
 .mypy_cache/
 .pytest_cache/
-.nyc_output
-coverage.xml
-
-# OS generated files
-.DS_Store
-Thumbs.db
 
 # Compressed files
 *.zip
@@ -68,8 +63,4 @@ Thumbs.db
 *.Z
 *.lz
 *.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
 ```

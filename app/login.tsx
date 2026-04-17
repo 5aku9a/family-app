@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { auth } from "../src/services/firebase";
@@ -11,11 +11,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
-  // Если пользователь уже авторизован, перенаправляем на главный экран
-  if (user) {
-    router.replace("/(tabs)");
-    return null;
-  }
+  // Если уже авторизован - сразу кидаем в приложение
+  useEffect(() => {
+    if (user) {
+      router.replace("/(tabs)");
+    }
+  }, [user]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -26,11 +27,10 @@ export default function Login() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // Перенаправление произойдет автоматически через AuthContext
+      // Редирект сработает через useEffect при изменении user
     } catch (e: any) {
       let errorMessage = "Ошибка при входе";
 
-      // Обработка распространенных ошибок Firebase
       if (e.code === 'auth/user-not-found') {
         errorMessage = "Пользователь с таким email не найден";
       } else if (e.code === 'auth/wrong-password') {
@@ -83,37 +83,9 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#666',
-    marginBottom: 30,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
+  container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
+  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 10, color: '#333' },
+  subtitle: { fontSize: 16, textAlign: 'center', color: '#666', marginBottom: 30 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 15, fontSize: 16 },
+  registerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20 },
 });
