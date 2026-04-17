@@ -1,6 +1,6 @@
 import { User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../services/firebase';
 
 export interface UserData {
@@ -15,7 +15,7 @@ interface AuthContextType {
   userData: UserData | null;
   loading: boolean;
   signOutUser: () => Promise<void>;
-  refreshUserData: () => Promise<void>; // Новая функция
+  refreshUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,8 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Функция загрузки данных пользователя
-  const loadUserData = useCallback(async (currentUser: User) => {
+  const loadUserData = async (currentUser: User) => {
     try {
       const userDocRef = doc(db, 'users', currentUser.uid);
       const userDocSnap = await getDoc(userDocRef);
@@ -54,18 +53,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         familyId: null,
       });
     }
-  }, []);
+  };
 
-  // Публичная функция для принудительного обновления
-  const refreshUserData = useCallback(async () => {
+  const refreshUserData = async () => {
     if (user) {
       await loadUserData(user);
     }
-  }, [user, loadUserData]);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      
       if (currentUser) {
         await loadUserData(currentUser);
       } else {
@@ -75,7 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, [loadUserData]);
+  }, []);
 
   const signOutUser = async () => {
     try {
@@ -88,25 +87,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const refreshUserData = async () => {
-    if (!user) return;
-    try {
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      if (userDocSnap.exists()) {
-        const data = userDocSnap.data();
-        setUserData({
-          displayName: data.displayName || user.email?.split('@')[0] || 'Пользователь',
-          email: user.email || '',
-          familyId: data.familyId || null,
-          photoURL: data.photoURL || null,
-        });
-      }
-    } catch (error) {
-      console.error('Ошибка обновления данных:', error);
-    }
-  };
-  
   return (
     <AuthContext.Provider value={{ user, userData, loading, signOutUser, refreshUserData }}>
       {children}
