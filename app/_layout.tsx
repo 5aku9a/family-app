@@ -33,7 +33,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="family/setup" options={{ title: 'Семья' }} />
-          <Stack.Screen name="budget/add" options={{ presentation: 'modal', title: 'Операция' }} />
+          <Stack.Screen name="finance/add" options={{ presentation: 'modal', title: 'Операция' }} />
         </Stack>
       ) : (
         // Пользователя нет -> Показываем Вход/Регу
