@@ -1,27 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import {
-  changeMemberRole,
-  createFamily,
-  deleteFamily,
-  generateInviteCode,
-  joinFamily,
-  leaveFamily,
-  removeMember,
+    changeMemberRole,
+    createFamily,
+    deleteFamily,
+    generateInviteCode,
+    joinFamily,
+    leaveFamily,
+    removeMember,
 } from '../../src/services/familyService';
 import { db } from '../../src/services/firebase';
 import { FamilyMember } from '../../src/types/family';
@@ -72,8 +72,6 @@ export default function ProfileScreen() {
     }
 
     setLoadingMembers(true);
-    const { collection, query, where } = require('firebase/firestore');
-    
     const membersQuery = query(
       collection(db, 'members'),
       where('familyId', '==', userData.familyId)
@@ -365,11 +363,11 @@ export default function ProfileScreen() {
                       </TouchableOpacity>
                     )}
                     {!isMe && canManage && !isOwner && (
-                       // Для простоты удаляем через то же меню или отдельной кнопкой, здесь добавим удаление по долгому тапу или иконке
-                       // Добавим иконку удаления рядом с меню для явности
-                       <TouchableOpacity onPress={() => handleRemoveMember(member.id, member.displayName || '')} style={{marginLeft: 10}}>
-                         <Ionicons name="close-circle" size={24} color="#FF3B30" />
-                       </TouchableOpacity>
+                      // Для простоты удаляем через то же меню или отдельной кнопкой, здесь добавим удаление по долгому тапу или иконке
+                      // Добавим иконку удаления рядом с меню для явности
+                      <TouchableOpacity onPress={() => handleRemoveMember(member.userId, member.displayName || '')} style={{ marginLeft: 10 }}>
+                        <Ionicons name="close-circle" size={24} color="#FF3B30" />
+                      </TouchableOpacity>
                     )}
                   </View>
                 );
@@ -502,7 +500,7 @@ export default function ProfileScreen() {
 
             <TouchableOpacity 
               style={[styles.roleOption, { borderTopWidth: 1, borderColor: '#eee', marginTop: 10 }]} 
-              onPress={() => handleRemoveMember(selectedMemberForRole!.id, selectedMemberForRole!.displayName || '')}
+              onPress={() => handleRemoveMember(selectedMemberForRole!.userId, selectedMemberForRole!.displayName || '')}
             >
               <Ionicons name="trash" size={24} color="#FF3B30" />
               <Text style={[styles.roleOptionText, { color: '#FF3B30' }]}>Удалить из семьи</Text>
