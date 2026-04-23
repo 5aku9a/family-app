@@ -51,6 +51,13 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="achievements"
+        options={{
+          title: 'Ачивки',
+          tabBarIcon: ({ color, size }) => <Ionicons name="trophy" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="finance"
         options={{
           title: 'Финансы',
@@ -58,6 +65,13 @@ export default function TabLayout() {
             <Ionicons name="wallet" size={size} color={color} />
           ),
         }}
+      />
+      <Tabs.Screen
+        name="subscriptions"
+        options={{
+          title: 'Подписки',
+          tabBarIcon: ({ color, size }) => <Ionicons name="repeat" size={size} color={color} />,
+          }}
       />
 
       <Tabs.Screen

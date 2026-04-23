@@ -1,5 +1,5 @@
 import { User, onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { Timestamp, doc, getDoc } from 'firebase/firestore';
 import React, { ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../services/firebase';
 
@@ -8,6 +8,7 @@ export interface UserData {
   email: string;
   familyId: string | null;
   photoURL?: string | null;
+  relationshipStartDate?: Timestamp | null;
 }
 
 interface AuthContextType {
