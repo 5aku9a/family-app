@@ -51,13 +51,6 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="achievements"
-        options={{
-          title: 'Ачивки',
-          tabBarIcon: ({ color, size }) => <Ionicons name="trophy" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="finance"
         options={{
           title: 'Финансы',
