@@ -5,7 +5,6 @@ import { collection, doc, getDoc, onSnapshot, query, Timestamp, updateDoc, where
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert,
-  Dimensions,
   Modal,
   ScrollView, StyleSheet, Text, TextInput,
   TouchableOpacity, View
@@ -18,8 +17,6 @@ import {
 import { db } from '../../src/services/firebase';
 import { Achievement, calculateAchievements, getDaysTogether, linkPartners } from '../../src/services/relationshipService';
 import { FamilyMember } from '../../src/types/family';
-
-const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   const { user, userData, loading: authLoading, refreshUserData, signOutUser } = useAuth();
@@ -36,7 +33,7 @@ export default function ProfileScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState(new Date());
 
-  // Семья модалки
+  // Модалки
   const [isCreateModalVisible, setCreateModalVisible] = useState(false);
   const [isJoinModalVisible, setJoinModalVisible] = useState(false);
   const [isEditProfileModalVisible, setEditProfileModalVisible] = useState(false);
@@ -48,15 +45,13 @@ export default function ProfileScreen() {
   const [selectedMemberForRole, setSelectedMemberForRole] = useState<FamilyMember & { id: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Достижения и статистика
+  // Данные
   const [myAchievements, setMyAchievements] = useState<Achievement[]>([]);
   const [partnerData, setPartnerData] = useState<any>(null);
-  const [daysTogether, setDaysTogether] = useState(0);
-  
-  // Локальный флаг, чтобы форсировать перерисовку сразу после привязки
-  const [localPartnerId, setLocalPartnerId] = useState<string | null>(null);
+  const [daysTogether, setDaysTogetherState] = useState(0);
+  const [isLoadingPartner, setIsLoadingPartner] = useState(false);
 
-  // Подписка на имя семьи
+  // Подписка на семью (название)
   useEffect(() => {
     if (!userData?.familyId) { setFamilyName(null); return; }
     const unsub = onSnapshot(doc(db, 'families', userData.familyId), (d) => {
@@ -78,42 +73,39 @@ export default function ProfileScreen() {
     return () => unsub();
   }, [userData?.familyId]);
 
-  // Загрузка данных партнера и расчет достижений
-  // Зависимости расширены: срабатывает при изменении userData или localPartnerId
+  // Загрузка партнера и достижений
   useEffect(() => {
-  if (!user) return;
-  loadData();
-}, [user, userData?.partnerId, userData?.relationshipStartDate, userData?.familyId, userData?.unlockedAchievements]);
+    if (!user) return;
+    loadProfileData();
+  }, [user, userData?.partnerId, userData?.relationshipStartDate, userData?.familyId, userData?.unlockedAchievements]);
 
-  const loadData = async () => {
-    // Определяем актуальный ID партнера: из контекста или локальный (если только что привязали)
-    const currentPartnerId = userData?.partnerId || localPartnerId;
-
-    console.log("DEBUG: Загрузка данных. PartnerId:", currentPartnerId, "UserData:", userData?.partnerId);
-
+  const loadProfileData = async () => {
     // 1. Партнер
-    if (currentPartnerId) {
+    if (userData?.partnerId) {
+      setIsLoadingPartner(true);
       try {
-        const snap = await getDoc(doc(db, 'users', currentPartnerId));
+        const snap = await getDoc(doc(db, 'users', userData.partnerId));
         if (snap.exists()) {
           setPartnerData(snap.data());
-          console.log("DEBUG: Партнер загружен:", snap.data().displayName);
         } else {
           setPartnerData(null);
         }
       } catch (e) {
-        console.error("Ошибка загрузки партнера:", e);
+        console.error("Ошибка загрузки партнера", e);
         setPartnerData(null);
+      } finally {
+        setIsLoadingPartner(false);
       }
     } else {
       setPartnerData(null);
+      setIsLoadingPartner(false);
     }
 
-    // 2. Дни вместе (берем дату из контекста)
+    // 2. Дни вместе
     const days = getDaysTogether(userData?.relationshipStartDate || null);
-    setDaysTogether(days);
+    setDaysTogetherState(days);
 
-    // 3. Расчет достижений
+    // 3. Достижения (заглушка статистики)
     const stats = { transactionsCount: 12, totalSpent: 15400, tasksCompleted: 3, messagesCount: 0 };
     const unlockedIds = userData?.unlockedAchievements || [];
     const newAchs = calculateAchievements(stats, days, !!userData?.familyId, unlockedIds);
@@ -124,48 +116,18 @@ export default function ProfileScreen() {
     if (!partnerEmailInput.trim() || !user) return;
     setLinkingProcessing(true);
     try {
-      // 1. Выполняем привязку в базе
       await linkPartners(user.uid, partnerEmailInput.trim());
-      
-      // 2. Пытаемся обновить контекст (на всякий случай)
-      await refreshUserData();
-
-      // 3. === ГЛАВНОЕ ИСПРАВЛЕНИЕ ===
-      // Находим пользователя в БД напрямую, чтобы получить актуальные данные (partnerId, partnerName)
-      const userSnap = await getDoc(doc(db, 'users', user.uid));
-      if (userSnap.exists()) {
-        const updatedData = userSnap.data();
-        
-        // Обновляем локальный стейт партнера для немедленного отображения
-        if (updatedData.partnerId) {
-           const partnerSnap = await getDoc(doc(db, 'users', updatedData.partnerId));
-           if (partnerSnap.exists()) {
-             setPartnerData(partnerSnap.data());
-           }
-           
-           // Пересчитываем дни и ачивки с новыми данными
-           const days = getDaysTogether(updatedData.relationshipStartDate || null);
-           setDaysTogether(days);
-           
-           const stats = { transactionsCount: 12, totalSpent: 15400, tasksCompleted: 3, messagesCount: 0 };
-           const unlockedIds = updatedData.unlockedAchievements || [];
-           const newAchs = calculateAchievements(stats, days, !!updatedData.familyId, unlockedIds);
-           setMyAchievements(newAchs);
-
-           Alert.alert('Успешно', `Пара привязана! Теперь вы вместе с ${partnerSnap.data()?.displayName || 'партнером'}.`);
-        }
-      }
-
       setLinkModalVisible(false);
       setPartnerEmailInput('');
+      Alert.alert('Успешно', 'Пара привязана!');
       
-      // Принудительно вызываем loadData еще раз через небольшую паузу, 
-      // если контекст все-таки обновится позже
-      setTimeout(() => loadData(), 1000);
-
+      // Принудительное обновление
+      await refreshUserData();
+      setTimeout(() => {
+         loadProfileData();
+      }, 500);
     } catch (e: any) {
-      console.error("Ошибка привязки:", e);
-      Alert.alert('Ошибка', e.message || 'Не удалось привязать пару');
+      Alert.alert('Ошибка', e.message);
     } finally {
       setLinkingProcessing(false);
     }
@@ -211,15 +173,9 @@ export default function ProfileScreen() {
       await refreshUserData();
       setRelationshipModalVisible(false);
       Alert.alert('Готово', 'Дата сохранена!');
-      loadData();
+      loadProfileData();
     } catch (e: any) { Alert.alert('Ошибка', e.message); }
     finally { setIsProcessing(false); }
-  };
-
-  const openRelationshipModal = () => {
-    const initialDate = userData?.relationshipStartDate?.toDate() || new Date();
-    setTempDate(initialDate);
-    setRelationshipModalVisible(true);
   };
 
   const handleShowCode = async () => {
@@ -280,13 +236,10 @@ export default function ProfileScreen() {
   if (authLoading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
 
   const formatDate = (ts: any) => ts ? ts.toDate().toLocaleDateString('ru-RU') : 'Не указана';
-  
-  // Используем локальный ID или ID из контекста для определения отображения
-  const hasPartner = !!userData?.partnerId || !!localPartnerId;
 
   return (
     <ScrollView style={styles.container}>
-      {/* Профиль пользователя */}
+      {/* Профиль */}
       <View style={styles.profileCard}>
         <View style={styles.header}>
           <View style={styles.avatar}><Text style={styles.avatarText}>{userData?.displayName?.[0]?.toUpperCase() || '?'}</Text></View>
@@ -300,14 +253,14 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ОТНОШЕНИЯ (Компактный блок) */}
+      {/* ОТНОШЕНИЯ */}
       <View style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Отношения</Text>
-          {hasPartner && <Ionicons name="heart" size={20} color="#FF3B30" />}
+          {userData?.partnerId && <Ionicons name="heart" size={20} color="#FF3B30" />}
         </View>
 
-        {!hasPartner ? (
+        {!userData?.partnerId ? (
           <View style={styles.emptyStateSmall}>
             <Text style={styles.emptyTextSmall}>Нет привязанного партнера</Text>
             <TouchableOpacity style={styles.linkBtn} onPress={() => setLinkModalVisible(true)}>
@@ -317,41 +270,44 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.coupleRow}>
-              <View style={styles.miniAvatar}>
-                <Text style={styles.miniAvatarText}>{userData?.displayName?.[0] || '?'}</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={16} color="#ccc" style={{marginHorizontal: 8}} />
-              <View style={styles.miniAvatar}>
-                <Text style={styles.miniAvatarText}>{partnerData?.displayName?.[0] || '?'}</Text>
-              </View>
-              <View style={styles.daysBadge}>
-                <Text style={styles.daysBadgeText}>{daysTogether} дн.</Text>
-              </View>
-            </View>
-            
-            <View style={styles.rowActions}>
-              <TouchableOpacity style={styles.smallAction} onPress={openRelationshipModal}>
-                <Ionicons name="calendar" size={16} color="#007AFF" />
-                <Text style={styles.smallActionText}>Дата: {formatDate(userData?.relationshipStartDate)}</Text>
-              </TouchableOpacity>
-            </View>
-            
-            {/* Мини-достижения */}
-            {myAchievements.length > 0 && (
-              <View style={styles.achPreview}>
-                <Text style={styles.achPreviewTitle}>Новые достижения:</Text>
-                <View style={styles.achRow}>
-                  {myAchievements.slice(0, 3).map((ach) => (
-                    <View key={ach.id} style={[styles.achDot, { backgroundColor: ach.color }]} />
-                  ))}
-                  {myAchievements.length > 3 && (
-                    <View style={styles.achMore}>
-                      <Text style={styles.achMoreText}>+{myAchievements.length - 3}</Text>
-                    </View>
-                  )}
+            {isLoadingPartner ? (
+              <ActivityIndicator style={{marginVertical: 20}} />
+            ) : (
+              <>
+                <View style={styles.coupleRow}>
+                  <View style={styles.miniAvatar}>
+                    <Text style={styles.miniAvatarText}>{userData?.displayName?.[0] || '?'}</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={16} color="#ccc" style={{marginHorizontal: 8}} />
+                  <View style={styles.miniAvatar}>
+                    <Text style={styles.miniAvatarText}>{partnerData?.displayName?.[0] || '?'}</Text>
+                  </View>
+                  <View style={styles.daysBadge}>
+                    <Text style={styles.daysBadgeText}>{daysTogether} дн.</Text>
+                  </View>
                 </View>
-              </View>
+                
+                <View style={styles.rowActions}>
+                  <TouchableOpacity style={styles.smallAction} onPress={() => setRelationshipModalVisible(true)}>
+                    <Ionicons name="calendar" size={16} color="#007AFF" />
+                    <Text style={styles.smallActionText}>Дата: {formatDate(userData?.relationshipStartDate)}</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {myAchievements.length > 0 && (
+                  <View style={styles.achPreview}>
+                    <Text style={styles.achPreviewTitle}>Новые достижения:</Text>
+                    <View style={styles.achRow}>
+                      {myAchievements.slice(0, 3).map((ach) => (
+                        <View key={ach.id} style={[styles.achDot, { backgroundColor: ach.color }]} />
+                      ))}
+                      {myAchievements.length > 3 && (
+                        <View style={styles.achMore}><Text style={styles.achMoreText}>+{myAchievements.length - 3}</Text></View>
+                      )}
+                    </View>
+                  </View>
+                )}
+              </>
             )}
           </>
         )}
@@ -371,24 +327,39 @@ export default function ProfileScreen() {
         ) : (
           <>
             <Text style={styles.familyName}>{familyName}</Text>
-            <View style={styles.membersList}>
-              {loadingMembers ? <ActivityIndicator size="small" style={{marginTop: 10}}/> : members.map(m => (
-                <View key={m.id} style={styles.memberRow}>
-                  <View style={styles.mAvatar}><Text style={styles.mAvatarText}>{m.displayName?.[0]}</Text></View>
-                  <View style={styles.mInfo}>
-                    <Text style={styles.mName}>{m.displayName}</Text>
-                    <Text style={styles.mRole}>{m.role === 'owner' ? 'Создатель' : m.role === 'admin' ? 'Админ' : 'Участник'}</Text>
-                  </View>
-                  {m.userId === user?.uid && <Text style={styles.meBadge}>Вы</Text>}
-                  {m.userId !== user?.uid && (members.find(x => x.userId === user?.uid)?.role === 'owner') && m.role !== 'owner' && (
-                    <TouchableOpacity onPress={() => handleRemoveMember(m.userId, m.displayName||'')} style={{marginLeft: 5}}>
-                      <Ionicons name="close-circle" size={20} color="#FF3B30"/>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-            </View>
             
+            {/* СПИСОК УЧАСТНИКОВ (ВОССТАНОВЛЕНО) */}
+            <View style={styles.membersList}>
+              {loadingMembers ? (
+                <ActivityIndicator size="small" style={{marginTop: 10}} />
+              ) : members.length === 0 ? (
+                <Text style={styles.emptyTextSmall}>Загрузка участников...</Text>
+              ) : (
+                members.map(m => {
+                  const isMe = m.userId === user?.uid;
+                  const canManage = members.find(x => x.userId === user?.uid)?.role === 'owner' || members.find(x => x.userId === user?.uid)?.role === 'admin';
+                  const isOwner = m.role === 'owner';
+
+                  return (
+                    <View key={m.id} style={styles.memberRow}>
+                      <View style={styles.mAvatar}><Text style={styles.mAvatarText}>{m.displayName?.[0] || '?'}</Text></View>
+                      <View style={styles.mInfo}>
+                        <Text style={styles.mName}>{m.displayName}</Text>
+                        <Text style={styles.mRole}>{isOwner ? 'Создатель' : m.role === 'admin' ? 'Админ' : 'Участник'}</Text>
+                      </View>
+                      {isMe && <View style={styles.meBadge}><Text style={styles.meBadgeText}>Вы</Text></View>}
+                      
+                      {!isMe && canManage && !isOwner && (
+                        <TouchableOpacity onPress={() => handleRemoveMember(m.userId, m.displayName||'')} style={{marginLeft: 5}}>
+                          <Ionicons name="close-circle" size={20} color="#FF3B30"/>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })
+              )}
+            </View>
+
             <View style={styles.familyActions}>
                <TouchableOpacity style={styles.familyActionBtn} onPress={handleShowCode}>
                  <Ionicons name="person-add" size={16} color="#007AFF" />
@@ -414,7 +385,7 @@ export default function ProfileScreen() {
         <Text style={styles.logoutText}>Выйти из аккаунта</Text>
       </TouchableOpacity>
       
-      <View style={{height: 40}} />
+      <View style={{height: 60}} />
 
       {/* --- МОДАЛЬНЫЕ ОКНА --- */}
       
@@ -471,7 +442,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Название семьи</Text>
-            <TextInput style={styles.input} placeholder="Фамилия или название" value={newFamilyName} onChangeText={setNewFamilyName} autoFocus />
+            <TextInput style={styles.input} placeholder="Фамилия" value={newFamilyName} onChangeText={setNewFamilyName} autoFocus />
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={()=>setCreateModalVisible(false)} style={styles.cancelBtn}><Text style={styles.cancelBtnText}>Отмена</Text></TouchableOpacity>
               <TouchableOpacity onPress={handleCreateFamily} disabled={isProcessing || !newFamilyName} style={styles.confirmBtn}>
@@ -487,7 +458,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Код приглашения</Text>
-            <TextInput style={[styles.input, {textAlign:'center', letterSpacing: 2, fontWeight:'bold'}]} placeholder="CODE123" value={inviteCodeInput} onChangeText={(t)=>setInviteCodeInput(t.toUpperCase())} maxLength={8} autoFocus />
+            <TextInput style={[styles.input, {textAlign:'center', letterSpacing: 2, fontWeight:'bold'}]} placeholder="CODE" value={inviteCodeInput} onChangeText={(t)=>setInviteCodeInput(t.toUpperCase())} maxLength={8} autoFocus />
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={()=>setJoinModalVisible(false)} style={styles.cancelBtn}><Text style={styles.cancelBtnText}>Отмена</Text></TouchableOpacity>
               <TouchableOpacity onPress={handleJoinFamily} disabled={isProcessing || !inviteCodeInput} style={styles.confirmBtn}>
@@ -580,7 +551,8 @@ const styles = StyleSheet.create({
   mInfo: { flex: 1 },
   mName: { fontSize: 14, fontWeight: '500' },
   mRole: { fontSize: 11, color: '#999' },
-  meBadge: { fontSize: 10, backgroundColor: '#4CD964', color: '#fff', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 3, marginRight: 8 },
+  meBadge: { backgroundColor: '#4CD964', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 3, marginRight: 8 },
+  meBadgeText: { fontSize: 10, color: '#fff', fontWeight: 'bold' },
   
   familyActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderColor: '#f0f0f0' },
   familyActionBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9F9F9', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#EEE', marginRight: 5 },

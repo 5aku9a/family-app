@@ -3,72 +3,50 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
+import { formatDaysString, getDaysTogether } from '../../src/services/relationshipService';
 
 const { width } = Dimensions.get('window');
 
+// Выносим компонент наружу, чтобы избежать ошибок области видимости
+const StatCard = ({ title, value, icon, color, onPress }: any) => (
+  <TouchableOpacity style={[styles.statCard, { borderLeftColor: color }]} onPress={onPress}>
+    <View style={[styles.iconBox, { backgroundColor: `${color}20` }]}>
+      <Ionicons name={icon} size={24} color={color} />
+    </View>
+    <View style={styles.statInfo}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{title}</Text>
+    </View>
+  </TouchableOpacity>
+);
+
 export default function HomeScreen() {
-  const { user, userData, refreshUserData } = useAuth(); // Добавили refreshUserData
+  const { user, userData, refreshUserData } = useAuth();
   const [daysString, setDaysString] = useState('');
   const [showRelationship, setShowRelationship] = useState(false);
-  const [stats, setStats] = useState({ balance: 0, tasks: 0, messages: 0 });
+  const [stats] = useState({ balance: 12500, tasks: 3, messages: 15 });
 
-  // Принудительно обновляем данные при каждом возврате на экран
+  // Принудительное обновление при возврате на экран
   useFocusEffect(
     useCallback(() => {
-      const updateData = async () => {
-        await refreshUserData();
-      };
-      updateData();
+      if (refreshUserData) refreshUserData();
     }, [])
   );
 
   useEffect(() => {
-    // Проверяем наличие партнера
-    const hasPartner = !!userData?.partnerId;
-    const hasDate = !!userData?.relationshipStartDate;
-
-    if (hasPartner && hasDate) {
+    if (userData?.partnerId && userData?.relationshipStartDate) {
       setShowRelationship(true);
-      
-      const startDate = userData.relationshipStartDate.toDate();
-      const now = new Date();
-      const diffTime = Math.abs(now.getTime() - startDate.getTime());
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
-      setDaysString(formatDays(diffDays));
+      const days = getDaysTogether(userData.relationshipStartDate);
+      setDaysString(formatDaysString(days));
     } else {
       setShowRelationship(false);
       setDaysString("");
     }
+  }, [userData]);
 
-    setStats({ balance: 12500, tasks: 3, messages: 15 });
-  }, [userData]); // Зависимость от userData теперь должна срабатывать после refreshUserData
-
-  const formatDays = (totalDays: number): string => {
-    if (totalDays === 0) return "Вместе сегодня!";
-    if (totalDays === 1) return "Вместе 1 день";
-    
-    const years = Math.floor(totalDays / 365);
-    const remainingDaysAfterYear = totalDays % 365;
-    const months = Math.floor(remainingDaysAfterYear / 30);
-    const days = remainingDaysAfterYear % 30;
-
-    let result = "";
-    if (years > 0) result += `${years} г. `;
-    if (months > 0) result += `${months} мес. `;
-    if (days > 0 || (years === 0 && months === 0)) result += `${days} дн.`;
-    
-    return `Вместе ${result.trim()}`;
-  };
-
-  // ... остальной код рендера без изменений ...
-  // (StatCard компонент и JSX возвращаются как у вас в коде выше)
-  
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* ... ваш JSX ... */}
-      {/* Убедитесь, что блок showRelationship отображается корректно */}
-       <View style={styles.header}>
+      <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Привет, {userData?.displayName || 'Семья'}! 👋</Text>
           {showRelationship && (
@@ -93,17 +71,15 @@ export default function HomeScreen() {
           <Text style={styles.heroLabel}>Вы потрясающая пара!</Text>
         </TouchableOpacity>
       )}
-      
-      {/* ... остальной контент ... */}
-       <Text style={styles.sectionTitle}>Обзор</Text>
+
+      <Text style={styles.sectionTitle}>Обзор</Text>
       <View style={styles.statsGrid}>
-        {/* ... карточки ... */}
-         <StatCard title="Баланс" value={`${stats.balance.toLocaleString()} ₽`} icon="wallet" color="#007AFF" onPress={() => router.push('/(tabs)/finance')} />
+        <StatCard title="Баланс" value={`${stats.balance.toLocaleString()} ₽`} icon="wallet" color="#007AFF" onPress={() => router.push('/(tabs)/finance')} />
         <StatCard title="Задачи" value={stats.tasks} icon="checkbox" color="#34C759" onPress={() => router.push('/(tabs)/tasks')} />
         <StatCard title="Сообщения" value={stats.messages} icon="chatbubbles" color="#5856D6" onPress={() => router.push('/(tabs)/chat')} />
       </View>
-      
-       <Text style={styles.sectionTitle}>Быстро</Text>
+
+      <Text style={styles.sectionTitle}>Быстро</Text>
       <View style={styles.quickActions}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/finance')}>
           <Ionicons name="add-circle" size={30} color="#FF6B6B" /><Text style={styles.actionText}>Расход</Text>
@@ -120,10 +96,8 @@ export default function HomeScreen() {
   );
 }
 
-// ... стили без изменений ...
 const styles = StyleSheet.create({
-   // ... ваши стили ...
-    container: { flex: 1, backgroundColor: '#F2F4F8' },
+  container: { flex: 1, backgroundColor: '#F2F4F8' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60 },
   greeting: { fontSize: 24, fontWeight: 'bold', color: '#333' },
   dateText: { fontSize: 14, color: '#FF3B30', fontWeight: '600', marginTop: 4 },
