@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import { collection, deleteDoc, doc, getDocs, onSnapshot, query, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { arrayUnion, collection, deleteDoc, doc, getDocs, onSnapshot, query, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
@@ -19,7 +19,7 @@ export default function ProfileScreen() {
   const [members, setMembers] = useState<(FamilyMember & { id: string })[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
 
-  // Отношения — теперь синхронизируются через коллекцию "pairs"
+  // Отношения
   const [localPartnerId, setLocalPartnerId] = useState<string | null>(null);
   const [localStartDate, setLocalStartDate] = useState<Timestamp | null>(null);
 
@@ -31,11 +31,11 @@ export default function ProfileScreen() {
   
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState(new Date());
-  
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
 
   // Достижения
   const [myUnlockedIds, setMyUnlockedIds] = useState<string[]>([]);
+  const [isCheckingAchievements, setIsCheckingAchievements] = useState(false);
 
   // Модалки семьи
   const [isCreateModalVisible, setCreateModalVisible] = useState(false);
@@ -93,43 +93,94 @@ export default function ProfileScreen() {
         const partnerId = data.user1 === user.uid ? data.user2 : data.user1;
         setLocalPartnerId(partnerId);
         setLocalStartDate(data.startDate);
+      } else {
+        setLocalPartnerId(null);
+        setLocalStartDate(null);
       }
     };
 
     unsub1 = onSnapshot(q1, (snap) => {
-      if (!snap.empty) {
-        handleSnapshot(snap);
-      } else {
-        unsub2 = onSnapshot(q2, (snap2) => {
-          if (!snap2.empty) {
-            handleSnapshot(snap2);
-          } else {
-            setLocalPartnerId(null);
-            setLocalStartDate(null);
-          }
-        });
-      }
+      handleSnapshot(snap);
+    });
+    
+    // Дополнительная подписка на случай если пользователь user2
+    unsub2 = onSnapshot(q2, (snap) => {
+       if (snap.empty && unsub1) { 
+         // Если первый запрос пуст, второй уже обрабатывается или тоже пуст
+         // Логика handleSnapshot внутри unsub1 уже сбрасывает состояние если пусто, 
+         // но для надежности можно продублировать проверку здесь если нужно
+       } else if (!snap.empty) {
+         handleSnapshot(snap);
+       }
     });
 
     return () => {
       unsub1();
-      if (unsub2) unsub2();
+      unsub2();
     };
   }, [user]);
 
-  // 4. Подписка на достижения (из userDoc)
+  
+  // 4. Подписка на достижения и их ПРОВЕРКА при изменении данных
   useEffect(() => {
     if (!user) return;
     const unsub = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
       if (docSnap.exists()) {
         const unlocked = docSnap.data()?.unlockedAchievements || [];
-        setMyUnlockedIds(Array.isArray(unlocked) ? unlocked : []);
+        const currentIds = Array.isArray(unlocked) ? unlocked : [];
+        setMyUnlockedIds(currentIds);
+        
+        // Запускаем проверку достижений только если данные загрузились и мы еще не проверяли в этой сессии активно
+        if (!isCheckingAchievements && localStartDate) {
+           checkAndUnlockAchievements(currentIds);
+        }
       }
     });
     return () => unsub();
-  }, [user]);
+  }, [user, localStartDate, isCheckingAchievements]);
 
-  // Вычисляем имя партнёра из списка members
+  
+  // Функция проверки и разблокировки достижений
+  const checkAndUnlockAchievements = async (currentIds: string[]) => {
+    if (!localStartDate || !user) return;
+    
+    setIsCheckingAchievements(true);
+    const newAchievements: string[] = [];
+    const days = Math.floor((Date.now() - localStartDate.toDate().getTime()) / (1000 * 60 * 60 * 24));
+
+    // 1. Проверка на наличие отношений (Первый шаг)
+    const firstStepId = 'first_step'; // Убедитесь, что такой ID есть в ALL_ACHIEVEMENTS
+    if (!currentIds.includes(firstStepId)) {
+       // Находим достижение в списке, чтобы убедиться что оно существует
+       const ach = ALL_ACHIEVEMENTS.find(a => a.id === firstStepId);
+       if (ach) newAchievements.push(firstStepId);
+    }
+
+    // 2. Проверка дней вместе
+    const milestones = [10, 30, 50, 100, 200, 300, 365, 500, 730, 1000];
+    for (const milestone of milestones) {
+      const achId = `days_${milestone}`; // Формат ID должен совпадать с relationshipService
+      if (days >= milestone && !currentIds.includes(achId)) {
+        const ach = ALL_ACHIEVEMENTS.find(a => a.id === achId);
+        if (ach) newAchievements.push(achId);
+      }
+    }
+
+    // Если есть новые достижения, сохраняем
+    if (newAchievements.length > 0) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          unlockedAchievements: arrayUnion(...newAchievements)
+        });
+        Alert.alert('🎉 Новые достижения!', `Вы открыли: ${newAchievements.length} шт.`);
+      } catch (e) {
+        console.error("Ошибка обновления достижений", e);
+      }
+    }
+    setIsCheckingAchievements(false);
+  };
+
+  // Вычисляем имя партнёра
   const localPartnerName = useMemo(() => {
     if (!localPartnerId) return null;
     const member = members.find(m => m.userId === localPartnerId);
@@ -203,6 +254,8 @@ export default function ProfileScreen() {
 
       setRelationshipModalVisible(false);
       setIsRelationshipExpanded(true);
+      // Принудительная проверка достижений после создания пары
+      setTimeout(() => checkAndUnlockAchievements(myUnlockedIds), 1000);
       Alert.alert('Успешно', `Пара создана с ${localPartnerName}`);
     } catch (e: any) {
       Alert.alert('Ошибка', e.message);
@@ -228,7 +281,6 @@ export default function ProfileScreen() {
     ]);
   };
 
-  // Остальные хендлеры без изменений...
   const handleCreateFamily = async () => {
     if (!newFamilyName.trim() || !user || !userData) return;
     setIsProcessing(true);
@@ -626,7 +678,4 @@ const styles = StyleSheet.create({
   milestoneRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
   milestoneIconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   milestoneInfo: { flex: 1 },
-  hint: { fontSize: 12, color: '#999', textAlign: 'center', marginBottom: 15, paddingHorizontal: 20 },
-  achTitleLocked: { color: '#999' },
-  achDescLocked: { color: '#CCC' },
 });
