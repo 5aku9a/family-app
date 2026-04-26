@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  // Фиксируем высоту для использования в других экранах
+  // 60 (база) + max(20, insets.bottom) (отступ под жесты)
+  const tabBarHeight = 60 + Math.max(20, insets.bottom); 
 
   return (
     <Tabs
@@ -17,11 +20,10 @@ export default function TabLayout() {
           backgroundColor: '#fff',
           borderTopWidth: 1,
           borderTopColor: '#eee',
-          // Ключевое исправление: добавляем отступ снизу для системных жестов
-          paddingBottom: Math.max(insets.bottom, 8), 
+          height: tabBarHeight,
+          paddingBottom: Math.max(8, insets.bottom), // Внутренний отступ контента
           paddingTop: 8,
-          height: 60 + Math.max(insets.bottom, 8), // Фиксированная высота + отступ
-          position: 'absolute', // Чтобы контент не сдвигался, а таб был поверх
+          position: 'absolute',
           left: 0,
           right: 0,
           shadowColor: '#000',
@@ -31,9 +33,9 @@ export default function TabLayout() {
           elevation: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
-          marginBottom: Platform.OS === 'ios' ? 0 : 4,
+          marginBottom: Platform.OS === 'ios' ? 4 : 2,
         },
         tabBarItemStyle: {
           paddingVertical: 4,
@@ -44,56 +46,35 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Главная',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
         }}
       />
-
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Расписание',
+          tabBarIcon: ({ color }) => <Ionicons name="calendar" size={24} color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="finance"
         options={{
           title: 'Финансы',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="wallet" size={24} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="subscriptions"
-        options={{
-          title: 'Подписки',
-          tabBarIcon: ({ color, size }) => <Ionicons name="repeat" size={size} color={color} />,
-          }}
-      />
-
-      <Tabs.Screen
-        name="tasks"
-        options={{
-          title: 'Задачи',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar" size={size} color={color} />
-          ),
-        }}
-      />
-
       <Tabs.Screen
         name="chat"
         options={{
           title: 'Чат',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="chatbubbles" size={24} color={color} />,
         }}
       />
-
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Профиль',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
         }}
       />
     </Tabs>

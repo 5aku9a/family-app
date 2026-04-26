@@ -1,343 +1,310 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import { collection, limit, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View
-} from 'react-native';
+import { router } from 'expo-router';
+import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { db } from '../../src/services/firebase';
-import { formatDaysString, getDaysTogether } from '../../src/services/relationshipService';
+import { CATEGORIES_CONFIG } from '../../src/types/budget';
 
 const { width } = Dimensions.get('window');
 
-// Типы для данных
-interface Transaction {
-  id: string;
-  amount: number;
-  type: 'income' | 'expense';
-  category: string;
-  date: Timestamp;
-  comment?: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  completed: boolean;
-  dueDate?: Timestamp;
-  assigneeName?: string;
-}
-
-export default function HomeScreen() {
-  const { user, userData, refreshUserData } = useAuth();
+export default function IndexScreen() {
+  const { user, userData } = useAuth();
+  const insets = useSafeAreaInsets();
   
-  // Состояния отношений
-  const [daysString, setDaysString] = useState('');
-  const [showRelationship, setShowRelationship] = useState(false);
-
-  // Состояния финансов
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [upcomingItems, setUpcomingItems] = useState<any[]>([]); // Теперь и задачи, и события
   const [balance, setBalance] = useState(0);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
-  const [loadingFinance, setLoadingFinance] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Состояния задач
-  const [activeTasks, setActiveTasks] = useState<Task[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
+  // Единый расчет позиции кнопки (как в finance и schedule)
+  const FAB_BOTTOM = 80 + insets.bottom;
 
-  // Обновление данных при фокусе экрана
-  useFocusEffect(
-    useCallback(() => {
-      if (refreshUserData) refreshUserData();
-    }, [])
-  );
-
-  // Логика отношений
   useEffect(() => {
-    // Используем безопасный доступ через any или проверяем наличие поля, если типы не обновлены
-    const hasPartner = !!(userData as any)?.partnerId;
-    const startDate = userData?.relationshipStartDate;
-
-    if (hasPartner && startDate) {
-      setShowRelationship(true);
-      const days = getDaysTogether(startDate);
-      setDaysString(formatDaysString(days));
-    } else {
-      setShowRelationship(false);
-      setDaysString("");
-    }
-  }, [userData]);
-
-  // Логика финансов (по FamilyID)
-  useEffect(() => {
-    if (!userData?.familyId) {
-      setBalance(0);
-      setRecentTransactions([]);
+    if (!userData?.familyId && !user) {
+      setLoading(false);
       return;
     }
 
-    setLoadingFinance(true);
-    // Запрос требует индекс (familyId + date), но он обычно создается автоматически по ссылке из ошибки
-    // Или можно использовать только где familyId, а сортировку сделать в JS, если индекс не создается
-    const q = query(
-      collection(db, 'transactions'),
-      where('familyId', '==', userData.familyId),
-      limit(50) // Берем чуть больше, чтобы отсортировать в JS если нужно, но orderBy лучше для производительности
+    setLoading(true);
+    const familyId = userData?.familyId || user?.uid;
+    
+    // 1. Транзакции (последние 5)
+    const qTrans = query(
+      collection(db, 'budget'),
+      where('familyId', '==', familyId),
+      orderBy('date', 'desc'),
+      limit(5)
+    );
+    
+    // 2. Ближайшие элементы расписания (задачи и события, ближайшие 3)
+    const qSchedule = query(
+      collection(db, 'schedule'),
+      where('familyId', '==', familyId),
+      orderBy('startTime', 'asc'),
+      limit(3)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      let totalIncome = 0;
-      let totalExpense = 0;
-      const transactions: Transaction[] = [];
+    const unsubTrans = onSnapshot(qTrans, (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setRecentTransactions(data);
+      
+      // Простой подсчет баланса за месяц
+      const now = new Date();
+      const startMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      
+      let income = 0;
+      let expense = 0;
 
-      snapshot.docs.forEach(doc => {
-        const data = doc.data() as any;
-        const t: Transaction = { id: doc.id, ...data };
-        transactions.push(t);
-
-        if (t.type === 'income') totalIncome += (t.amount || 0);
-        if (t.type === 'expense') totalExpense += (t.amount || 0);
+      data.forEach((t: any) => {
+        if (t.date && t.date.toDate) {
+          const tTime = t.date.toDate().getTime();
+          if (tTime >= startMonth) {
+            if (t.type === 'income') income += (t.amount || 0);
+            if (t.type === 'expense') expense += (t.amount || 0);
+          }
+        }
       });
-
-      // Сортировка по дате в JS (если убрали orderBy из запроса для упрощения)
-      transactions.sort((a, b) => {
-        const dateA = a.date?.toMillis ? a.date.toMillis() : 0;
-        const dateB = b.date?.toMillis ? b.date.toMillis() : 0;
-        return dateB - dateA;
-      });
-
-      setBalance(totalIncome - totalExpense);
-      setRecentTransactions(transactions.slice(0, 5)); // Показываем топ 5
-      setLoadingFinance(false);
-    }, (error) => {
-      console.error("Ошибка загрузки финансов:", error);
-      setLoadingFinance(false);
+      
+      setBalance(income - expense);
+      setLoading(false);
+    }, (err) => {
+      console.error("Ошибка транзакций:", err);
+      setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [userData?.familyId]);
-
-  // Логика задач (по FamilyID)
-  useEffect(() => {
-    if (!userData?.familyId) {
-      setActiveTasks([]);
-      return;
-    }
-
-    setLoadingTasks(true);
-    // Убрали orderBy и сложные фильтры, чтобы не требовался индекс
-    // Фильтруем только по familyId и completed
-    const q = query(
-      collection(db, 'tasks'),
-      where('familyId', '==', userData.familyId),
-      where('completed', '==', false)
-      // orderBy убран, чтобы избежать ошибки индекса. Сортируем ниже в JS.
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tasks: Task[] = [];
-      snapshot.docs.forEach(doc => {
-        tasks.push({ id: doc.id, ...doc.data() } as Task);
-      });
-
-      // Сортировка в JS: сначала те, у которых есть дата, потом по алфавиту
-      tasks.sort((a, b) => {
-        const dateA = a.dueDate?.toMillis ? a.dueDate.toMillis() : Infinity;
-        const dateB = b.dueDate?.toMillis ? b.dueDate.toMillis() : Infinity;
-        return dateA - dateB;
-      });
-
-      setActiveTasks(tasks.slice(0, 3)); // Показываем топ 3
-      setLoadingTasks(false);
-    }, (error) => {
-      console.error("Ошибка загрузки задач:", error);
-      setLoadingTasks(false);
+    const unsubSchedule = onSnapshot(qSchedule, (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setUpcomingItems(data);
+    }, (err) => {
+      console.error("Ошибка расписания:", err);
     });
 
-    return () => unsubscribe();
-  }, [userData?.familyId]);
+    return () => { unsubTrans(); unsubSchedule(); };
+  }, [userData?.familyId, user]);
 
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount);
-  };
-
-  const formatDate = (ts: Timestamp) => {
-    if (!ts) return '';
-    return ts.toDate().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-  };
+  if (loading) return <ActivityIndicator size="large" color="#007AFF" style={{ flex: 1 }} />;
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Шапка */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Привет, {userData?.displayName || 'Семья'}! 👋</Text>
-          {showRelationship && (
-            <Text style={styles.dateText}>❤️ {daysString}</Text>
-          )}
-        </View>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={{color:'#fff', fontWeight:'bold'}}>{(userData?.displayName || 'U')[0]}</Text>
+    <View style={styles.container}>
+      <ScrollView 
+        contentContainerStyle={{ paddingBottom: FAB_BOTTOM + 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Приветствие */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Привет,</Text>
+            <Text style={styles.userName}>{userData?.displayName?.split(' ')[0] || 'Семья'}!</Text>
           </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Блок отношений */}
-      {showRelationship && (
-        <TouchableOpacity 
-          style={styles.heroCard}
-          activeOpacity={0.7}
-          onPress={() => router.push('/(tabs)/profile')}
-        >
-          <Ionicons name="heart" size={32} color="#FF3B30" />
-          <Text style={styles.heroValue}>{daysString}</Text>
-          <Text style={styles.heroLabel}>Вы потрясающая пара!</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Финансы */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Бюджет</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/finance')}>
-            <Text style={styles.sectionLink}>Все</Text>
+          <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarBtn}>
+            <View style={styles.avatarSmall}>
+              <Text style={styles.avatarText}>{userData?.displayName?.[0]?.toUpperCase() || '?'}</Text>
+            </View>
           </TouchableOpacity>
         </View>
-        
+
+        {/* Карточка баланса */}
         <View style={styles.balanceCard}>
-          {loadingFinance ? (
-            <ActivityIndicator color="#007AFF" />
-          ) : (
-            <>
-              <Text style={styles.balanceLabel}>Общий баланс</Text>
-              <Text style={[styles.balanceValue, balance < 0 && styles.negativeBalance]}>
-                {formatMoney(balance)}
-              </Text>
-              
-              {recentTransactions.length > 0 ? (
-                <View style={styles.transactionsList}>
-                  {recentTransactions.map(t => (
-                    <View key={t.id} style={styles.transactionItem}>
-                      <View style={[styles.tIconBox, { backgroundColor: t.type === 'income' ? '#E8F5E9' : '#FFEBEE' }]}>
-                        <Ionicons 
-                          name={t.type === 'income' ? 'arrow-down' : 'arrow-up'} 
-                          size={16} 
-                          color={t.type === 'income' ? '#34C759' : '#FF3B30'} 
-                        />
-                      </View>
-                      <View style={styles.tInfo}>
-                        <Text style={styles.tCategory}>{t.category}</Text>
-                        <Text style={styles.tDate}>{formatDate(t.date)}</Text>
-                      </View>
-                      <Text style={[styles.tAmount, { color: t.type === 'income' ? '#34C759' : '#333' }]}>
-                        {t.type === 'income' ? '+' : '-'}{formatMoney(t.amount)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.emptyText}>Нет транзакций</Text>
-              )}
-            </>
-          )}
+          <Text style={styles.balanceLabel}>Баланс за этот месяц</Text>
+          <Text style={styles.balanceValue}>{balance.toLocaleString()} ₽</Text>
+          
+          <View style={styles.balanceStats}>
+            <View style={styles.statItem}>
+              <Ionicons name="arrow-up-circle" size={20} color="#4CD964" />
+              <Text style={styles.statText}>Доходы</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Ionicons name="arrow-down-circle" size={20} color="#FF3B30" />
+              <Text style={styles.statText}>Расходы</Text>
+            </View>
+          </View>
         </View>
-      </View>
 
-      {/* Задачи */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Задачи</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/tasks')}>
-            <Text style={styles.sectionLink}>Все</Text>
+        {/* Быстрые действия */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity 
+            style={[styles.actionBtn, { backgroundColor: '#FFF0F0' }]} 
+            onPress={() => router.push('/finance')}
+          >
+            <Ionicons name="card" size={24} color="#FF3B30" />
+            <Text style={[styles.actionText, { color: '#FF3B30' }]}>Расход</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.actionBtn, { backgroundColor: '#F0F8FF' }]} 
+            onPress={() => router.push('/schedule')}
+          >
+            <Ionicons name="checkbox-outline" size={24} color="#007AFF" />
+            <Text style={[styles.actionText, { color: '#007AFF' }]}>Задача</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionBtn, { backgroundColor: '#FFF8E1' }]} 
+            onPress={() => router.push('/schedule')}
+          >
+            <Ionicons name="calendar-outline" size={24} color="#FF9500" />
+            <Text style={[styles.actionText, { color: '#FF9500' }]}>Событие</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.tasksCard}>
-          {loadingTasks ? (
-            <ActivityIndicator color="#007AFF" />
-          ) : activeTasks.length > 0 ? (
-            activeTasks.map(task => (
-              <View key={task.id} style={styles.taskItem}>
-                <View style={styles.taskCheckbox}>
-                  <Ionicons name="square-outline" size={20} color="#007AFF" />
+        {/* Ближайшее в расписании */}
+        {upcomingItems.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Ближайшее</Text>
+              <TouchableOpacity onPress={() => router.push('/schedule')}>
+                <Text style={styles.seeAll}>Все</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {upcomingItems.map((item: any) => (
+              <TouchableOpacity 
+                key={item.id} 
+                style={styles.itemCard}
+                onPress={() => item.type === 'task' ? router.push(`/schedule/${item.id}`) : null}
+              >
+                <View style={[styles.itemIconBox, { backgroundColor: `${item.color || '#007AFF'}20` }]}>
+                  <Ionicons 
+                    name={item.type === 'task' ? 'checkbox-outline' : 'calendar-outline'} 
+                    size={20} 
+                    color={item.color || '#007AFF'} 
+                  />
                 </View>
-                <View style={styles.taskInfo}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  {task.dueDate && (
-                    <Text style={styles.taskDue}>
-                      до {task.dueDate.toDate().toLocaleDateString('ru-RU')}
-                    </Text>
-                  )}
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.itemDate}>
+                    {item.startTime.toDate().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {item.assigneeName && ` • ${item.assigneeName}`}
+                  </Text>
                 </View>
-              </View>
-            ))
+                <Ionicons name="chevron-forward" size={18} color="#CCC" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Последние транзакции */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>История операций</Text>
+            <TouchableOpacity onPress={() => router.push('/finance')}>
+              <Text style={styles.seeAll}>Все</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {recentTransactions.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="receipt-outline" size={40} color="#E0E0E0" />
+              <Text style={styles.emptyText}>Пока нет операций</Text>
+            </View>
           ) : (
-            <Text style={styles.emptyText}>Все задачи выполнены! 🎉</Text>
+            recentTransactions.map((t: any) => {
+              const config = CATEGORIES_CONFIG[t.category] || { icon: 'wallet', color: '#999' };
+              return (
+                <View key={t.id} style={styles.transCard}>
+                  <View style={[styles.transIcon, { backgroundColor: config.color }]}>
+                    <Ionicons name={config.icon as any} size={18} color="#fff" />
+                  </View>
+                  <View style={styles.transInfo}>
+                    <Text style={styles.transCat}>{t.category}</Text>
+                    {t.userName ? (
+                      <Text style={styles.transUser}>{t.userName}</Text>
+                    ) : (
+                      <Text style={styles.transDate}>{t.date?.toDate().toLocaleDateString('ru-RU')}</Text>
+                    )}
+                  </View>
+                  <Text style={[styles.transAmount, t.type === 'income' ? styles.income : styles.expense]}>
+                    {t.type === 'income' ? '+' : '-'}{t.amount} ₽
+                  </Text>
+                </View>
+              );
+            })
           )}
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Кнопка быстрого действия (FAB) */}
+      {/* Плавающая кнопка (FAB) */}
       <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => {
-          Alert.alert(
-            "Быстрое действие",
-            "Что хотите добавить?",
-            [
-              { text: "Расход", onPress: () => router.push('/finance/add') }, // Проверьте путь
-              { text: "Задачу", onPress: () => router.push('/tasks/add') },   // Проверьте путь
-              { text: "Отмена", style: "cancel" }
-            ]
-          );
-        }}
+        style={[styles.fab, { bottom: FAB_BOTTOM }]} 
+        onPress={() => router.push('/finance')}
+        activeOpacity={0.8}
       >
         <Ionicons name="add" size={32} color="#fff" />
       </TouchableOpacity>
-
-      <View style={{height: 80}} />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F4F8' },
+  
+  // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60 },
-  greeting: { fontSize: 24, fontWeight: 'bold', color: '#333' },
-  dateText: { fontSize: 14, color: '#FF3B30', fontWeight: '600', marginTop: 4 },
-  avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center' },
+  greeting: { fontSize: 16, color: '#666', fontWeight: '500' },
+  userName: { fontSize: 24, fontWeight: 'bold', color: '#333', marginTop: 2 },
+  avatarBtn: { padding: 4 },
+  avatarSmall: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center' },
+  avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
   
-  heroCard: { margin: 20, padding: 20, backgroundColor: '#FFF0F0', borderRadius: 20, alignItems: 'center', shadowColor: '#FF3B30', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
-  heroValue: { fontSize: 20, fontWeight: 'bold', color: '#333', textAlign: 'center', marginTop: 5 },
-  heroLabel: { fontSize: 13, color: '#666', textAlign: 'center', marginTop: 4 },
+  // Balance Card
+  balanceCard: { backgroundColor: '#007AFF', marginHorizontal: 16, borderRadius: 24, padding: 24, shadowColor: '#007AFF', shadowOpacity: 0.3, shadowRadius: 15, elevation: 8 },
+  balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, textAlign: 'center', marginBottom: 8 },
+  balanceValue: { color: '#fff', fontSize: 36, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
+  balanceStats: { flexDirection: 'row', justifyContent: 'space-around', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)', paddingTop: 16 },
+  statItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  statText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
 
-  section: { paddingHorizontal: 20, marginBottom: 20 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  // Quick Actions
+  quickActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 24, gap: 12 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 16, gap: 8 },
+  actionText: { fontWeight: '700', fontSize: 13 },
+
+  // Sections
+  section: { marginTop: 24, paddingHorizontal: 16 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  sectionLink: { fontSize: 14, color: '#007AFF', fontWeight: '600' },
+  seeAll: { color: '#007AFF', fontSize: 14, fontWeight: '600' },
 
-  balanceCard: { backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
-  balanceLabel: { fontSize: 14, color: '#999' },
-  balanceValue: { fontSize: 32, fontWeight: 'bold', color: '#333', marginVertical: 10 },
-  negativeBalance: { color: '#FF3B30' },
-  
-  transactionsList: { marginTop: 15 },
-  transactionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  tIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  tInfo: { flex: 1 },
-  tCategory: { fontSize: 15, fontWeight: '500', color: '#333' },
-  tDate: { fontSize: 12, color: '#999', marginTop: 2 },
-  tAmount: { fontSize: 15, fontWeight: 'bold' },
+  // Items (Schedule)
+  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderRadius: 16, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.03, elevation: 2 },
+  itemIconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  itemInfo: { flex: 1 },
+  itemTitle: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 4 },
+  itemDate: { fontSize: 12, color: '#999' },
 
-  tasksCard: { backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
-  taskItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  taskCheckbox: { marginRight: 12 },
-  taskInfo: { flex: 1 },
-  taskTitle: { fontSize: 15, color: '#333' },
-  taskDue: { fontSize: 12, color: '#999', marginTop: 2 },
+  // Transactions
+  transCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderRadius: 16, marginBottom: 8 },
+  transIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  transInfo: { flex: 1 },
+  transCat: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 2 },
+  transUser: { fontSize: 12, color: '#007AFF', fontWeight: '500' },
+  transDate: { fontSize: 12, color: '#999' },
+  transAmount: { fontSize: 15, fontWeight: 'bold' },
+  income: { color: '#34C759' },
+  expense: { color: '#FF3B30' },
 
-  emptyText: { fontSize: 14, color: '#999', textAlign: 'center', marginVertical: 10, fontStyle: 'italic' },
+  emptyState: { padding: 30, alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#E0E0E0' },
+  emptyText: { color: '#999', marginTop: 10, fontSize: 14 },
 
-  fab: { position: 'absolute', bottom: 20, right: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#007AFF', shadowOpacity: 0.4, shadowRadius: 10, elevation: 8 },
+  // FAB
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#007AFF',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 1000,
+  },
 });
