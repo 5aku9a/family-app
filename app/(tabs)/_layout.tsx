@@ -6,19 +6,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  // Высота таб-бара: база 60 + отступ снизу
   const tabBarHeight = 60 + Math.max(20, insets.bottom);
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: '#00F0FF',
+        tabBarInactiveTintColor: '#5E6C85',
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)', // Более плотный фон вместо blur
           borderTopWidth: 1,
-          borderTopColor: '#eee',
+          borderTopColor: 'rgba(255, 255, 255, 0.1)',
           height: tabBarHeight,
           paddingBottom: Math.max(8, insets.bottom),
           paddingTop: 8,
@@ -26,69 +25,58 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 8,
+          shadowOffset: { width: 0, height: -5 },
+          shadowOpacity: 0.3,
+          shadowRadius: 10,
+          elevation: 10,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '700',
           marginTop: 4,
         },
-        tabBarItemStyle: {
-          paddingVertical: 4,
-        },
+        tabBarItemStyle: { paddingVertical: 4 },
       }}
     >
-      {/* Расписание */}
       <Tabs.Screen
         name="schedule"
         options={{
-          title: 'Расписание',
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={24} color={color} />,
+          title: 'Орбита',
+          tabBarIcon: ({ color, size }) => <Ionicons name="planet-outline" size={24} color={color} />,
         }}
       />
-      
-      {/* Финансы */}
       <Tabs.Screen
         name="finance"
         options={{
-          title: 'Финансы',
-          tabBarIcon: ({ color, size }) => <Ionicons name="wallet" size={24} color={color} />,
+          title: 'Ресурсы',
+          tabBarIcon: ({ color, size }) => <Ionicons name="diamond-outline" size={24} color={color} />,
         }}
       />
-
-      {/* ГЛАВНАЯ (ЦЕНТРАЛЬНАЯ КНОПКА) */}
       <Tabs.Screen
         name="index"
         options={{
-          title: '', // Скрываем текст
+          title: '',
           tabBarIcon: ({ focused }) => (
             <View style={styles.centerButtonContainer}>
               <View style={[styles.centerButton, focused ? styles.centerButtonFocused : styles.centerButtonDefault]}>
-                <Ionicons name="home" size={28} color="#fff" />
+                <Ionicons name="rocket" size={28} color="#fff" />
               </View>
             </View>
           ),
         }}
       />
-
-      {/* Чат */}
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Чат',
-          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={24} color={color} />,
+          title: 'Связь',
+          tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" size={24} color={color} />, // Исправлено имя иконки
         }}
       />
-
-      {/* Профиль */}
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Профиль',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={24} color={color} />,
+          title: 'Капитан',
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={24} color={color} />,
         }}
       />
     </Tabs>
@@ -96,30 +84,12 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  centerButtonContainer: {
-    top: -20, // Поднимаем кнопку над баром
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  centerButtonContainer: { top: -22, alignItems: 'center', justifyContent: 'center' },
   centerButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 10,
-    borderWidth: 4,
-    borderColor: '#fff', // Белая обводка для отделения от фона
+    width: 68, height: 68, borderRadius: 34, justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#00F0FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.6, shadowRadius: 10, elevation: 12,
+    borderWidth: 4, borderColor: '#0F172A',
   },
-  centerButtonDefault: {
-    backgroundColor: '#8E8E93', // Серый в неактивном состоянии
-  },
-  centerButtonFocused: {
-    backgroundColor: '#007AFF', // Синий в активном состоянии
-    transform: [{ scale: 1.05 }], // Легкое увеличение при выборе
-  },
+  centerButtonDefault: { backgroundColor: '#334155', transform: [{ scale: 1 }] },
+  centerButtonFocused: { backgroundColor: '#00F0FF', transform: [{ scale: 1.1 }], shadowOpacity: 0.8 },
 });

@@ -15,12 +15,12 @@ export default function IndexScreen() {
   const insets = useSafeAreaInsets();
   
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [upcomingItems, setUpcomingItems] = useState<any[]>([]); // Теперь и задачи, и события
+  const [upcomingItems, setUpcomingItems] = useState<any[]>([]);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Единый расчет позиции кнопки (как в finance и schedule)
-  const FAB_BOTTOM = 80 + insets.bottom;
+  // Отступ снизу: высота таб-бара (60) + отступ безопасной зоны + небольшой запас
+  const FAB_BOTTOM = 70 + insets.bottom;
 
   useEffect(() => {
     if (!userData?.familyId && !user) {
@@ -39,7 +39,7 @@ export default function IndexScreen() {
       limit(5)
     );
     
-    // 2. Ближайшие элементы расписания (задачи и события, ближайшие 3)
+    // 2. Ближайшие элементы расписания
     const qSchedule = query(
       collection(db, 'schedule'),
       where('familyId', '==', familyId),
@@ -51,7 +51,7 @@ export default function IndexScreen() {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setRecentTransactions(data);
       
-      // Простой подсчет баланса за месяц
+      // Подсчет баланса за месяц
       const now = new Date();
       const startMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
       
@@ -85,10 +85,13 @@ export default function IndexScreen() {
     return () => { unsubTrans(); unsubSchedule(); };
   }, [userData?.familyId, user]);
 
-  if (loading) return <ActivityIndicator size="large" color="#007AFF" style={{ flex: 1 }} />;
+  if (loading) return <ActivityIndicator size="large" color="#00F0FF" style={{ flex: 1, backgroundColor: '#0B1120' }} />;
 
   return (
     <View style={styles.container}>
+      {/* Звездный фон (упрощенный для главной) */}
+      <View style={styles.starsBg} />
+
       <ScrollView 
         contentContainerStyle={{ paddingBottom: FAB_BOTTOM + 40 }}
         showsVerticalScrollIndicator={false}
@@ -97,7 +100,7 @@ export default function IndexScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Привет,</Text>
-            <Text style={styles.userName}>{userData?.displayName?.split(' ')[0] || 'Семья'}!</Text>
+            <Text style={styles.userName}>{userData?.displayName?.split(' ')[0] || 'Пилот'}!</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarBtn}>
             <View style={styles.avatarSmall}>
@@ -127,7 +130,7 @@ export default function IndexScreen() {
         {/* Быстрые действия */}
         <View style={styles.quickActions}>
           <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#FFF0F0' }]} 
+            style={[styles.actionBtn, { backgroundColor: 'rgba(255, 59, 48, 0.15)', borderColor: 'rgba(255, 59, 48, 0.3)' }]} 
             onPress={() => router.push('/finance')}
           >
             <Ionicons name="card" size={24} color="#FF3B30" />
@@ -135,7 +138,7 @@ export default function IndexScreen() {
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#F0F8FF' }]} 
+            style={[styles.actionBtn, { backgroundColor: 'rgba(0, 122, 255, 0.15)', borderColor: 'rgba(0, 122, 255, 0.3)' }]} 
             onPress={() => router.push('/schedule')}
           >
             <Ionicons name="checkbox-outline" size={24} color="#007AFF" />
@@ -143,7 +146,7 @@ export default function IndexScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#FFF8E1' }]} 
+            style={[styles.actionBtn, { backgroundColor: 'rgba(255, 149, 0, 0.15)', borderColor: 'rgba(255, 149, 0, 0.3)' }]} 
             onPress={() => router.push('/schedule')}
           >
             <Ionicons name="calendar-outline" size={24} color="#FF9500" />
@@ -155,7 +158,7 @@ export default function IndexScreen() {
         {upcomingItems.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Ближайшее</Text>
+              <Text style={styles.sectionTitle}>На орбите</Text>
               <TouchableOpacity onPress={() => router.push('/schedule')}>
                 <Text style={styles.seeAll}>Все</Text>
               </TouchableOpacity>
@@ -165,7 +168,7 @@ export default function IndexScreen() {
               <TouchableOpacity 
                 key={item.id} 
                 style={styles.itemCard}
-                onPress={() => item.type === 'task' ? router.push(`/schedule/${item.id}`) : null}
+                onPress={() => router.push(`/schedule/${item.id}`)}
               >
                 <View style={[styles.itemIconBox, { backgroundColor: `${item.color || '#007AFF'}20` }]}>
                   <Ionicons 
@@ -177,11 +180,11 @@ export default function IndexScreen() {
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
                   <Text style={styles.itemDate}>
-                    {item.startTime.toDate().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {item.startTime?.toDate ? item.startTime.toDate().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
                     {item.assigneeName && ` • ${item.assigneeName}`}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#CCC" />
+                <Ionicons name="chevron-forward" size={18} color="#64748B" />
               </TouchableOpacity>
             ))}
           </View>
@@ -190,7 +193,7 @@ export default function IndexScreen() {
         {/* Последние транзакции */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>История операций</Text>
+            <Text style={styles.sectionTitle}>Журнал операций</Text>
             <TouchableOpacity onPress={() => router.push('/finance')}>
               <Text style={styles.seeAll}>Все</Text>
             </TouchableOpacity>
@@ -198,7 +201,7 @@ export default function IndexScreen() {
           
           {recentTransactions.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={40} color="#E0E0E0" />
+              <Ionicons name="receipt-outline" size={40} color="#475569" />
               <Text style={styles.emptyText}>Пока нет операций</Text>
             </View>
           ) : (
@@ -214,7 +217,7 @@ export default function IndexScreen() {
                     {t.userName ? (
                       <Text style={styles.transUser}>{t.userName}</Text>
                     ) : (
-                      <Text style={styles.transDate}>{t.date?.toDate().toLocaleDateString('ru-RU')}</Text>
+                      <Text style={styles.transDate}>{t.date?.toDate ? t.date.toDate().toLocaleDateString('ru-RU') : ''}</Text>
                     )}
                   </View>
                   <Text style={[styles.transAmount, t.type === 'income' ? styles.income : styles.expense]}>
@@ -225,6 +228,8 @@ export default function IndexScreen() {
             })
           )}
         </View>
+        
+        {/* Подпись автора внизу */}
       </ScrollView>
 
       {/* Плавающая кнопка (FAB) */}
@@ -233,75 +238,80 @@ export default function IndexScreen() {
         onPress={() => router.push('/finance')}
         activeOpacity={0.8}
       >
-        <Ionicons name="add" size={32} color="#fff" />
+        <Ionicons name="add" size={32} color="#0B1120" />
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F4F8' },
+  container: { flex: 1, backgroundColor: '#0B1120' },
+  starsBg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.3 }, // Можно заменить на компонент со звездами
   
   // Header
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60 },
-  greeting: { fontSize: 16, color: '#666', fontWeight: '500' },
-  userName: { fontSize: 24, fontWeight: 'bold', color: '#333', marginTop: 2 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 50 },
+  greeting: { fontSize: 16, color: '#94A3B8', fontWeight: '500' },
+  userName: { fontSize: 24, fontWeight: 'bold', color: '#E2E8F0', marginTop: 2 },
   avatarBtn: { padding: 4 },
-  avatarSmall: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+  avatarSmall: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#00F0FF', justifyContent: 'center', alignItems: 'center' },
+  avatarText: { color: '#0B1120', fontWeight: 'bold', fontSize: 18 },
   
   // Balance Card
-  balanceCard: { backgroundColor: '#007AFF', marginHorizontal: 16, borderRadius: 24, padding: 24, shadowColor: '#007AFF', shadowOpacity: 0.3, shadowRadius: 15, elevation: 8 },
-  balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, textAlign: 'center', marginBottom: 8 },
+  balanceCard: { backgroundColor: 'rgba(30, 41, 59, 0.6)', marginHorizontal: 16, borderRadius: 24, padding: 24, shadowColor: '#1a1716', shadowOpacity: 0.1, shadowRadius: 15, elevation: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  balanceLabel: { color: '#94A3B8', fontSize: 14, textAlign: 'center', marginBottom: 8 },
   balanceValue: { color: '#fff', fontSize: 36, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
-  balanceStats: { flexDirection: 'row', justifyContent: 'space-around', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)', paddingTop: 16 },
+  balanceStats: { flexDirection: 'row', justifyContent: 'space-around', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 16 },
   statItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  statText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+  statText: { color: '#E2E8F0', fontWeight: '600', fontSize: 14 },
+  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
 
   // Quick Actions
   quickActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 24, gap: 12 },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 16, gap: 8 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 16, gap: 8, borderWidth: 1 },
   actionText: { fontWeight: '700', fontSize: 13 },
 
   // Sections
   section: { marginTop: 24, paddingHorizontal: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  seeAll: { color: '#007AFF', fontSize: 14, fontWeight: '600' },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#E2E8F0' },
+  seeAll: { color: '#00F0FF', fontSize: 14, fontWeight: '600' },
 
   // Items (Schedule)
-  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderRadius: 16, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.03, elevation: 2 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(30, 41, 59, 0.4)', padding: 14, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   itemIconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   itemInfo: { flex: 1 },
-  itemTitle: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 4 },
-  itemDate: { fontSize: 12, color: '#999' },
+  itemTitle: { fontSize: 15, fontWeight: '600', color: '#E2E8F0', marginBottom: 4 },
+  itemDate: { fontSize: 12, color: '#94A3B8' },
 
   // Transactions
-  transCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderRadius: 16, marginBottom: 8 },
+  transCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(30, 41, 59, 0.4)', padding: 14, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   transIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   transInfo: { flex: 1 },
-  transCat: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 2 },
-  transUser: { fontSize: 12, color: '#007AFF', fontWeight: '500' },
-  transDate: { fontSize: 12, color: '#999' },
-  transAmount: { fontSize: 15, fontWeight: 'bold' },
-  income: { color: '#34C759' },
+  transCat: { fontSize: 15, fontWeight: '600', color: '#E2E8F0', marginBottom: 2 },
+  transUser: { fontSize: 12, color: '#00F0FF', fontWeight: '500' },
+  transDate: { fontSize: 12, color: '#64748B' },
+  transAmount: { fontSize: 15, fontWeight: 'bold', color: '#E2E8F0' },
+  income: { color: '#4CD964' },
   expense: { color: '#FF3B30' },
 
-  emptyState: { padding: 30, alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#E0E0E0' },
-  emptyText: { color: '#999', marginTop: 10, fontSize: 14 },
+  emptyState: { padding: 30, alignItems: 'center', backgroundColor: 'rgba(15, 23, 42, 0.3)', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#334155' },
+  emptyText: { color: '#64748B', marginTop: 10, fontSize: 14 },
+
+  // Footer
+  footer: { alignItems: 'center', marginTop: 40, marginBottom: 20 },
+  footerText: { color: '#475569', fontSize: 12, letterSpacing: 1 },
 
   // FAB
-  fab: {
+  fab: { 
     position: 'absolute',
     right: 20,
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#00F0FF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#007AFF',
+    shadowColor: '#00F0FF',
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 10,
