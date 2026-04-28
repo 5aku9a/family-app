@@ -1,24 +1,28 @@
 import { useFonts } from 'expo-font';
 import { Redirect, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 
+// Предотвращаем автоматическое скрытие сплеш-скрина
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppContent() {
   const { user, loading } = useAuth();
-  const [isReady, setIsReady] = useState(false);
+  const [fontsLoaded] = useFonts({
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+  });
 
   useEffect(() => {
-    if (!loading) {
-      setIsReady(true);
+    // Скрываем сплеш-скрин только когда загрузка завершена И шрифты загружены
+    if (!loading && fontsLoaded) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [loading]);
+  }, [loading, fontsLoaded]);
 
-  if (!isReady) {
+  // Пока идет загрузка или шрифты не готовы — показываем индикатор
+  if (loading || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00F0FF" />
@@ -27,10 +31,12 @@ function AppContent() {
     );
   }
 
+  // Если пользователь не авторизован — редирект на логин
   if (!user) {
     return <Redirect href="/login" />;
   }
 
+  // Если все ок — показываем приложение
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
@@ -42,14 +48,6 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!fontsLoaded) {
-    return null;
-  }
-
   return (
     <AuthProvider>
       <AppContent />
