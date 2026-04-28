@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "family-app",
+    "name": "FamilySpace",
     "slug": "family-app",
     "version": "1.0.0",
-    "scheme": "familyapp",
+    "scheme": "familyspace",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
@@ -21,14 +21,20 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
+        "backgroundColor": "#0B1120"
+      },
+      "package": "com.bir4.familyspace"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "1e017339-2ef5-42ed-973c-f0b3aaaea08c"
+      }
+    }
   }
 }
