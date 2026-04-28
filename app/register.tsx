@@ -27,17 +27,17 @@ export default function Register() {
     try {
       let user;
 
-      // Попытка создать нового пользователя
+
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         user = userCredential.user;
         await updateProfile(user, { displayName });
         console.log("✅ Новый пользователь создан в Auth");
       } catch (authError: any) {
-        // Если пользователь уже существует в Auth (email-already-in-use)
+
         if (authError.code === 'auth/email-already-in-use') {
           console.log("⚠️ Email занят, проверяем наличие профиля...");
-          // Пробуем войти, чтобы получить объект пользователя
+
           const signInCredential = await signInWithEmailAndPassword(auth, email, password);
           user = signInCredential.user;
         } else {
@@ -45,12 +45,12 @@ export default function Register() {
         }
       }
 
-      // Проверяем, есть ли документ профиля в Firestore
+
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        // Если профиля нет (например, после очистки БД), создаем его
+
         console.log("📝 Профиль не найден, создаем новый документ...");
         await setDoc(userRef, {
           uid: user.uid,
@@ -64,7 +64,6 @@ export default function Register() {
         console.log("✅ Профиль уже существует");
       }
 
-      // Переход в приложение
       router.replace("/(tabs)/profile");
 
     } catch (e: any) {

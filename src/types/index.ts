@@ -1,25 +1,22 @@
-// Основные типы данных для приложения "Семейный быт и бюджет"
 
-// Пользователь
 export interface User {
   id: string;
   email: string;
   displayName: string;
   photoURL?: string;
-  familyId?: string; // ID семьи, к которой принадлежит пользователь
+  familyId?: string; 
   createdAt: Date;
 }
 
-// Семья
+
 export interface Family {
   id: string;
   name: string;
-  members: string[]; // Массив ID пользователей
+  members: string[]; 
   createdAt: Date;
-  createdBy: string; // ID создателя семьи
+  createdBy: string; 
 }
 
-// Категория расходов/доходов
 export interface Category {
   id: string;
   name: string;
@@ -28,11 +25,11 @@ export interface Category {
   color?: string;
 }
 
-// Транзакция (доход или расход)
+
 export interface Transaction {
   id: string;
   familyId: string;
-  userId: string; // Кто добавил
+  userId: string; 
   amount: number;
   type: 'income' | 'expense';
   categoryId: string;
@@ -41,7 +38,7 @@ export interface Transaction {
   createdAt: Date;
 }
 
-// Задача
+
 export interface Task {
   id: string;
   familyId: string;
@@ -55,7 +52,7 @@ export interface Task {
   completedAt?: Date;
 }
 
-// Подписка
+
 export interface Subscription {
   id: string;
   familyId: string;
@@ -70,7 +67,7 @@ export interface Subscription {
   createdAt: Date;
 }
 
-// Баланс семьи
+
 export interface FamilyBalance {
   familyId: string;
   totalIncome: number;

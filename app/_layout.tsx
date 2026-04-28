@@ -29,14 +29,12 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       {user ? (
-        // Пользователь вошел -> Показываем Табы
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="family/setup" options={{ title: 'Семья' }} />
           <Stack.Screen name="finance/add" options={{ presentation: 'modal', title: 'Операция' }} />
         </Stack>
       ) : (
-        // Пользователя нет -> Показываем Вход/Регу
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />

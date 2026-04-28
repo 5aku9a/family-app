@@ -15,17 +15,17 @@ const { width, height } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   const { user, userData, loading: authLoading, refreshUserData, signOutUser } = useAuth();
-  const insets = useSafeAreaInsets(); // Отступы для челки и нижней панели
+  const insets = useSafeAreaInsets(); 
 
   const [familyName, setFamilyName] = useState<string | null>(null);
   const [members, setMembers] = useState<(FamilyMember & { id: string })[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
 
-  // Отношения
+
   const [localPartnerId, setLocalPartnerId] = useState<string | null>(null);
   const [localStartDate, setLocalStartDate] = useState<Timestamp | null>(null);
 
-  // UI флаги
+
   const [isRelationshipExpanded, setIsRelationshipExpanded] = useState(false);
   const [isRelationshipModalVisible, setRelationshipModalVisible] = useState(false);
   const [isMilestonesModalVisible, setMilestonesModalVisible] = useState(false);
@@ -35,11 +35,10 @@ export default function ProfileScreen() {
   const [tempDate, setTempDate] = useState(new Date());
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
 
-  // Достижения
+
   const [myUnlockedIds, setMyUnlockedIds] = useState<string[]>([]);
   const [isCheckingAchievements, setIsCheckingAchievements] = useState(false);
 
-  // Модалки семьи
   const [isCreateModalVisible, setCreateModalVisible] = useState(false);
   const [isJoinModalVisible, setJoinModalVisible] = useState(false);
   const [isEditProfileModalVisible, setEditProfileModalVisible] = useState(false);
@@ -51,7 +50,7 @@ export default function ProfileScreen() {
   const [selectedMemberForRole, setSelectedMemberForRole] = useState<FamilyMember & { id: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Генерация звезд
+
   const [stars, setStars] = useState<{id: number, top: number, left: number, size: number, opacity: number}[]>([]);
   useEffect(() => {
     const newStars = Array.from({ length: 60 }).map((_, i) => ({
@@ -64,7 +63,7 @@ export default function ProfileScreen() {
     setStars(newStars);
   }, []);
 
-  // 1. Подписка на семью
+
   useEffect(() => {
     if (!userData?.familyId) { setFamilyName(null); return; }
     const unsub = onSnapshot(doc(db, 'families', userData.familyId), (d) => {
@@ -73,7 +72,6 @@ export default function ProfileScreen() {
     return () => unsub();
   }, [userData?.familyId]);
 
-  // 2. Подписка на участников
   useEffect(() => {
     if (!userData?.familyId) { 
       setMembers([]); 
@@ -92,7 +90,6 @@ export default function ProfileScreen() {
     return () => unsub();
   }, [userData?.familyId]);
 
-  // 3. Подписка на пару
   useEffect(() => {
     if (!user) return;
     const q1 = query(collection(db, 'pairs'), where('user1', '==', user.uid));
@@ -119,7 +116,6 @@ export default function ProfileScreen() {
     return () => { unsub1(); unsub2(); };
   }, [user]);
 
-  // 4. Подписка на достижения и проверка
   useEffect(() => {
     if (!user) return;
     const unsub = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
@@ -358,7 +354,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Звездный фон */}
+
       {stars.map(star => (
         <View
           key={star.id}
@@ -370,14 +366,14 @@ export default function ProfileScreen() {
       ))}
 
       <ScrollView 
-        // ДОБАВЛЕНО: paddingTop для учета челки
+
         contentContainerStyle={{ 
           paddingTop: insets.top, 
           paddingBottom: 100 + insets.bottom 
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Профиль */}
+
         <View style={styles.profileCard}>
           <View style={styles.header}>
             <View style={styles.avatar}><Text style={styles.avatarText}>{userData?.displayName?.[0]?.toUpperCase() || '?'}</Text></View>
@@ -391,7 +387,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ОТНОШЕНИЯ */}
+
         <View style={styles.sectionCard}>
           <TouchableOpacity style={styles.collapsibleHeader} onPress={() => setIsRelationshipExpanded(!isRelationshipExpanded)}>
             <View style={styles.headerLeft}>
@@ -438,7 +434,7 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* ДОСТИЖЕНИЯ */}
+
         <View style={styles.sectionCard}>
           <TouchableOpacity style={styles.achievementsButton} onPress={()=>setAchievementsModalVisible(true)}>
             <View style={styles.achBtnLeft}>
@@ -452,7 +448,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* СЕМЬЯ */}
+
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}><Text style={[styles.sectionTitle, {color: '#E2E8F0'}]}>Семья</Text></View>
           {!userData?.familyId ? (
@@ -494,7 +490,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}><Ionicons name="power" size={20} color="#fff"/><Text style={styles.logoutText}>Выйти</Text></TouchableOpacity>
         
-        {/* FOOTER: Created by 5aku9a */}
+
         <View style={styles.footerContainer}>
           <Text style={styles.footerText}>Created by </Text>
           <Text style={styles.footerHighlight}>5aku9a</Text>
@@ -503,7 +499,7 @@ export default function ProfileScreen() {
         <View style={{height: 20}}/>
       </ScrollView>
 
-      {/* МОДАЛКИ (стили обновлены ниже) */}
+
       <Modal visible={isRelationshipModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -598,7 +594,7 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Остальные модалки */}
+
       <Modal visible={isCreateModalVisible} transparent><View style={styles.modalOverlay}><View style={styles.modalContent}><Text style={styles.modalTitle}>Семья</Text><TextInput style={styles.input} value={newFamilyName} onChangeText={setNewFamilyName} placeholderTextColor="#64748B" /><View style={styles.modalButtons}><TouchableOpacity onPress={()=>setCreateModalVisible(false)} style={styles.cancelBtn}><Text style={styles.cancelBtnText}>Отмена</Text></TouchableOpacity><TouchableOpacity onPress={handleCreateFamily} style={styles.confirmBtn}><Text style={styles.confirmBtnText}>ОК</Text></TouchableOpacity></View></View></View></Modal>
       <Modal visible={isJoinModalVisible} transparent><View style={styles.modalOverlay}><View style={styles.modalContent}><Text style={styles.modalTitle}>Вход</Text><TextInput style={styles.input} value={inviteCodeInput} onChangeText={t=>setInviteCodeInput(t.toUpperCase())} placeholderTextColor="#64748B" /><View style={styles.modalButtons}><TouchableOpacity onPress={()=>setJoinModalVisible(false)} style={styles.cancelBtn}><Text style={styles.cancelBtnText}>Отмена</Text></TouchableOpacity><TouchableOpacity onPress={handleJoinFamily} style={styles.confirmBtn}><Text style={styles.confirmBtnText}>ОК</Text></TouchableOpacity></View></View></View></Modal>
       <Modal visible={isEditProfileModalVisible} transparent><View style={styles.modalOverlay}><View style={styles.modalContent}><Text style={styles.modalTitle}>Имя</Text><TextInput style={styles.input} value={newDisplayName} onChangeText={setNewDisplayName} placeholderTextColor="#64748B" /><View style={styles.modalButtons}><TouchableOpacity onPress={()=>setEditProfileModalVisible(false)} style={styles.cancelBtn}><Text style={styles.cancelBtnText}>Отмена</Text></TouchableOpacity><TouchableOpacity onPress={handleUpdateProfile} style={styles.confirmBtn}><Text style={styles.confirmBtnText}>ОК</Text></TouchableOpacity></View></View></View></Modal>
@@ -677,7 +673,6 @@ const styles = StyleSheet.create({
   logoutBtn: { marginHorizontal: 16, backgroundColor: '#EF4444', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: '#EF4444', shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   logoutText: { color: '#fff', fontWeight: 'bold', marginLeft: 10 },
 
-  // Footer Styles
   footerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, opacity: 0.6 },
   footerText: { fontSize: 12, color: '#64748B', fontWeight: '400' },
   footerHighlight: { fontSize: 12, color: '#00F0FF', fontWeight: '700', letterSpacing: 0.5, textShadowColor: 'rgba(0, 240, 255, 0.5)', textShadowOffset: {width: 0, height: 0}, textShadowRadius: 4 },

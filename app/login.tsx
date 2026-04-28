@@ -18,7 +18,6 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
-  // Если уже авторизован - сразу кидаем в приложение
   useEffect(() => {
     if (user) {
       router.replace('/(tabs)');
@@ -34,7 +33,6 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // Редирект сработает через useEffect при изменении user
     } catch (e: any) {
       let errorMessage = 'Ошибка при входе';
 
@@ -58,7 +56,6 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Звездный фон (декор) */}
       <View style={styles.starField}>
         {[...Array(30)].map((_, i) => (
           <View
@@ -83,7 +80,6 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
-          {/* Логотип */}
           <View style={styles.header}>
             <View style={styles.logoBox}>
               <Ionicons name="rocket" size={50} color="#00F0FF" />
@@ -92,7 +88,6 @@ export default function LoginScreen() {
             <Text style={styles.subtitle}>Вход на борт</Text>
           </View>
 
-          {/* Форма */}
           <View style={styles.formCard}>
             <View style={styles.inputGroup}>
               <Ionicons name="mail-outline" size={22} color="#5E6C85" style={styles.inputIcon} />

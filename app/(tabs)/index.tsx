@@ -19,7 +19,6 @@ export default function IndexScreen() {
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Отступ снизу: высота таб-бара (60) + отступ безопасной зоны + небольшой запас
   const FAB_BOTTOM = 70 + insets.bottom;
 
   useEffect(() => {
@@ -31,7 +30,6 @@ export default function IndexScreen() {
     setLoading(true);
     const familyId = userData?.familyId || user?.uid;
     
-    // 1. Транзакции (последние 5)
     const qTrans = query(
       collection(db, 'budget'),
       where('familyId', '==', familyId),
@@ -39,7 +37,6 @@ export default function IndexScreen() {
       limit(5)
     );
     
-    // 2. Ближайшие элементы расписания
     const qSchedule = query(
       collection(db, 'schedule'),
       where('familyId', '==', familyId),
@@ -51,7 +48,6 @@ export default function IndexScreen() {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setRecentTransactions(data);
       
-      // Подсчет баланса за месяц
       const now = new Date();
       const startMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
       
@@ -89,14 +85,12 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Звездный фон (упрощенный для главной) */}
       <View style={styles.starsBg} />
 
       <ScrollView 
         contentContainerStyle={{ paddingBottom: FAB_BOTTOM + 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Приветствие */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Привет,</Text>
@@ -109,7 +103,6 @@ export default function IndexScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Карточка баланса */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Баланс за этот месяц</Text>
           <Text style={styles.balanceValue}>{balance.toLocaleString()} ₽</Text>
@@ -127,7 +120,6 @@ export default function IndexScreen() {
           </View>
         </View>
 
-        {/* Быстрые действия */}
         <View style={styles.quickActions}>
           <TouchableOpacity 
             style={[styles.actionBtn, { backgroundColor: 'rgba(255, 59, 48, 0.15)', borderColor: 'rgba(255, 59, 48, 0.3)' }]} 
@@ -154,7 +146,6 @@ export default function IndexScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Ближайшее в расписании */}
         {upcomingItems.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -190,7 +181,6 @@ export default function IndexScreen() {
           </View>
         )}
 
-        {/* Последние транзакции */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Журнал операций</Text>
@@ -229,10 +219,8 @@ export default function IndexScreen() {
           )}
         </View>
         
-        {/* Подпись автора внизу */}
       </ScrollView>
 
-      {/* Плавающая кнопка (FAB) */}
       <TouchableOpacity 
         style={[styles.fab, { bottom: FAB_BOTTOM }]} 
         onPress={() => router.push('/finance')}
@@ -246,9 +234,8 @@ export default function IndexScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B1120' },
-  starsBg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.3 }, // Можно заменить на компонент со звездами
+  starsBg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.3 }, 
   
-  // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 50 },
   greeting: { fontSize: 16, color: '#94A3B8', fontWeight: '500' },
   userName: { fontSize: 24, fontWeight: 'bold', color: '#E2E8F0', marginTop: 2 },
@@ -256,7 +243,6 @@ const styles = StyleSheet.create({
   avatarSmall: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#00F0FF', justifyContent: 'center', alignItems: 'center' },
   avatarText: { color: '#0B1120', fontWeight: 'bold', fontSize: 18 },
   
-  // Balance Card
   balanceCard: { backgroundColor: 'rgba(30, 41, 59, 0.6)', marginHorizontal: 16, borderRadius: 24, padding: 24, shadowColor: '#1a1716', shadowOpacity: 0.1, shadowRadius: 15, elevation: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   balanceLabel: { color: '#94A3B8', fontSize: 14, textAlign: 'center', marginBottom: 8 },
   balanceValue: { color: '#fff', fontSize: 36, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
@@ -265,25 +251,25 @@ const styles = StyleSheet.create({
   statText: { color: '#E2E8F0', fontWeight: '600', fontSize: 14 },
   statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
 
-  // Quick Actions
+
   quickActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 24, gap: 12 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 16, gap: 8, borderWidth: 1 },
   actionText: { fontWeight: '700', fontSize: 13 },
 
-  // Sections
+
   section: { marginTop: 24, paddingHorizontal: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#E2E8F0' },
   seeAll: { color: '#00F0FF', fontSize: 14, fontWeight: '600' },
 
-  // Items (Schedule)
+
   itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(30, 41, 59, 0.4)', padding: 14, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   itemIconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   itemInfo: { flex: 1 },
   itemTitle: { fontSize: 15, fontWeight: '600', color: '#E2E8F0', marginBottom: 4 },
   itemDate: { fontSize: 12, color: '#94A3B8' },
 
-  // Transactions
+
   transCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(30, 41, 59, 0.4)', padding: 14, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   transIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   transInfo: { flex: 1 },
@@ -297,11 +283,11 @@ const styles = StyleSheet.create({
   emptyState: { padding: 30, alignItems: 'center', backgroundColor: 'rgba(15, 23, 42, 0.3)', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#334155' },
   emptyText: { color: '#64748B', marginTop: 10, fontSize: 14 },
 
-  // Footer
+
   footer: { alignItems: 'center', marginTop: 40, marginBottom: 20 },
   footerText: { color: '#475569', fontSize: 12, letterSpacing: 1 },
 
-  // FAB
+
   fab: { 
     position: 'absolute',
     right: 20,
