@@ -1,50 +1,43 @@
-# Welcome to your Expo app 👋
+# FamilySpace
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+FamilySpace — мобильное приложение для организации семейного пространства и совместного управления повседневными задачами.
 
-## Get started
+## Возможности
 
-1. Install dependencies
+- Регистрация и авторизация пользователей
+- Создание семейных групп
+- Управление семейным бюджетом
+- Учет доходов и расходов
+- Категории операций
+- Календарь событий
+- Подписки и регулярные платежи
+- Статистика и аналитика
+- Управление профилем пользователей
+- Синхронизация данных между участниками семьи
 
-   ```bash
-   npm install
-   ```
+## Технологии
 
-2. Start the app
+- React Native
+- TypeScript
+- Expo
+- Firebase Authentication
+- Cloud Firestore
+- React Navigation
+- Git
 
-   ```bash
-   npx expo start
-   ```
+## Скриншоты
+<img width="369" height="765" alt="image" src="https://github.com/user-attachments/assets/31608a5e-68db-4f3f-84f2-48cd02a4c17d" />
+<img width="414" height="839" alt="image" src="https://github.com/user-attachments/assets/1a3eb13b-5463-473c-9b37-4bb54a457b33" />
+<img width="413" height="854" alt="image" src="https://github.com/user-attachments/assets/17c58d52-5230-4e07-a15c-6829248825c5" />
+<img width="412" height="837" alt="image" src="https://github.com/user-attachments/assets/e75eb62a-5b7f-4e5d-91b0-27d742ea5243" />
+<img width="416" height="833" alt="image" src="https://github.com/user-attachments/assets/bed96b8f-da76-425d-887f-ae00c249308d" />
+<img width="373" height="761" alt="image" src="https://github.com/user-attachments/assets/dd345e3e-9226-45a4-927d-3dc8cceef366" />
+<img width="411" height="839" alt="image" src="https://github.com/user-attachments/assets/78044285-c0b0-402b-9944-6ae2bf11d43d" />
 
-In the output, you'll find options to open the app in a
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Установка
 
 ```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+git clone ...
+npm install
+npx expo start
